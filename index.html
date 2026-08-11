@@ -902,7 +902,7 @@ const now = () => Date.now();
 function newBird(sid) {
   const b = BIRDS[sid];
   const n = (S && S.birds ? S.birds.filter(p => p.sid === sid).length : 0);
-  return { sid, nick: n ? `${b.name} ${n + 1}` : b.name, stage: 0, exp: 0, hunger: 78, clean: 92, happy: 80, energy: 88, poops: [], sick: 0, sleep: 0, born: now(), t: now(), cd: {} };
+  return { sid, free: 0, nick: n ? `${b.name} ${n + 1}` : b.name, stage: 0, exp: 0, hunger: 78, clean: 92, happy: 80, energy: 88, poops: [], sick: 0, sleep: 0, born: now(), t: now(), cd: {} };
 }
 function freshState() { return { coin: 260, birds: [], active: 0, seen: [], sound: 1, music: 1, t: now() }; }
 const cur = () => S.birds[S.active];
@@ -940,6 +940,7 @@ function tick() {
     if (mins < 0.05) return;
     mins = Math.min(mins, 480);
     p.t = t;
+    if (p.free) { p.hunger = 100; p.clean = 100; p.energy = 100; p.happy = clamp(Math.max(p.happy, 82)); p.poops = []; p.sick = 0; return; }
     if (p.stage === 0) { p.happy = clamp(p.happy - mins * 0.3); return; }
     if (p.sleep) {
       p.energy = clamp(p.energy + mins * 3.2);
@@ -981,11 +982,25 @@ function onGrow(p) {
         const v = h.querySelector('#nickIn').value.trim(); if (v) p.nick = v.slice(0, 8);
         closeModal(); paint(); save();
       });
+  } else if (p.stage === 4) {
+    p.free = 1; p.freeAt = now(); p.poops = []; p.sick = 0; p.sleep = 0;
+    p.hunger = p.clean = p.energy = 100; p.happy = Math.max(p.happy, 90);
+    S.coin += 300;
+    const others = S.birds.filter(x => !x.free);
+    modal(`<h2>${p.nick}(이)가 다 자랐어요!</h2>
+      <p class="desc">이제 <b>스스로 살아갈 수 있어요</b>.<br>밥이나 청소를 챙기지 않아도 잘 지내요.<br>독립한 뒤에도 둥지에서 언제든 만나 놀 수 있어요.</p>
+      <div style="width:180px;margin:0 auto">${birdSVG(b, 4, { uid: 'g', flap: 1 })}</div>
+      <div class="center" style="font-family:'Jua';font-size:20px;color:#B58818;margin-top:8px">🪙 +300</div>
+      <div class="small center" style="margin-top:6px">독립한 아이는 육아수첩에 남아요</div>
+      ${others.length ? `<div class="row2"><button class="btn big green" id="goOther">다른 아이 돌보러 가기</button>
+        <button class="btn big" onclick="closeModal()">여기 있을래요</button></div>`
+        : `<button class="btn big green" style="margin-top:14px;width:100%" onclick="closeModal()">축하해!</button>`}`,
+      h => { const g = h.querySelector('#goOther'); if (g) g.onclick = () => {
+        S.active = S.birds.indexOf(others[0]); closeModal(); paint(); renderNestList(); save(); }; });
   } else {
     modal(`<h2>${p.nick}(이)가 자랐어요!</h2><p class="desc">${STAGES[p.stage - 1].label} → <b>${STAGES[p.stage].label}</b></p>
       <div style="width:170px;margin:0 auto">${birdSVG(b, p.stage, { uid: 'g' })}</div>
       <button class="btn big green" style="margin-top:14px;width:100%" onclick="closeModal()">멋지다!</button>`);
-    if (p.stage === 4) S.coin += 300;
   }
   save();
 }
@@ -1005,6 +1020,7 @@ function act(kind) {
     if (kind === 'pat') { if (!cool(p, 'pat', 3)) return toast('조금만 기다려요'); addExp(p, 2); p.happy = clamp(p.happy + 6); fx('✨'); }
     paint(); save(); return;
   }
+  if (p.free && ['poop', 'bath', 'sleep', 'cure'].includes(kind)) return;
   if (p.sleep && kind !== 'sleep') return toast(`${p.nick}(이)가 자고 있어요`);
   switch (kind) {
     case 'feed':
@@ -1030,6 +1046,9 @@ function act(kind) {
       fx('🎵'); jump(); break;
     case 'sleep':
       p.sleep = p.sleep ? 0 : 1; toast(p.sleep ? '불을 껐어요. 잘 자요' : '일어났어요!'); break;
+    case 'pet':
+      if (!cool(p, 'pet', 2)) return;
+      p.happy = clamp(p.happy + 6); fx('🤍'); jump(); break;
     case 'cure':
       if (!p.sick) return;
       if (S.coin < 40) return toast('코인이 부족해요 (40)');
@@ -1045,6 +1064,7 @@ function jump() {
 
 /* ============ 화면 그리기 ============ */
 function moodText(p) {
+  if (p.free) return '스스로 잘 지내고 있어요';
   if (p.stage === 0) return '따뜻하게 품어주세요';
   if (p.sick) return '아파요… 씻기고 밥 주면 나아요';
   if (p.sleep) return '쿨쿨 자는 중';
@@ -1089,6 +1109,11 @@ function paint() {
   const m = moodText(p);
   $('#mood').className = 'mood' + (m ? '' : ' hidden'); $('#mood').textContent = m;
 
+  if (p.free) {
+    $('#statBox').innerHTML = `<div class="stat" style="grid-column:1/-1;text-align:center;background:#F3FBEE;border-color:#CDE8C4">
+      <div style="font-family:'Jua';font-size:15px">🌿 독립한 새예요</div>
+      <div style="font-size:12px;color:var(--ink2);margin-top:4px">밥과 청소를 챙기지 않아도 스스로 잘 지내요.<br>언제든 놀아주고 만날 수 있어요.</div></div>`;
+  } else
   $('#statBox').innerHTML = STATDEF.map(([k, lb, c, ic]) => {
     const v = Math.round(p[k]);
     return `<div class="stat"><div class="lb"><b>${ic} ${lb}</b><span>${v}</span></div>
@@ -1096,11 +1121,18 @@ function paint() {
   }).join('');
 
   const need = STAGES[p.stage].need;
+  if (p.free) {
+    $('#stageName').textContent = '어른새 · 독립';
+    $('#expTxt').textContent = `함께한 지 ${Math.max(1, Math.ceil((now() - p.born) / 86400000))}일`;
+    $('#expBar').style.width = '100%';
+  } else
   $('#stageName').textContent = STAGES[p.stage].label + (p.stage < 4 ? ' → ' + STAGES[p.stage + 1].label : ' (다 자랐어요)');
   $('#expTxt').textContent = p.stage < 4 ? `${Math.round(p.exp)} / ${need}` : '만렙 🌟';
   $('#expBar').style.width = (p.stage < 4 ? clamp(p.exp / need * 100) : 100) + '%';
 
-  const A = p.stage === 0
+  const A = p.free
+    ? [['play', '🎈', '놀아주기'], ['pet', '🤍', '쓰다듬기'], ['snack', '🍰', '간식 25']]
+    : p.stage === 0
     ? [['warm', '🔥', '알 품기'], ['pat', '🤍', '쓰다듬기'], ['nest', '🪺', '둥지 정리']]
     : [['feed', FOODICON[b.food], '밥주기'], ['snack', '🍰', '간식 25'], ['poop', '💩', `똥치우기${p.poops.length ? ' ' + p.poops.length : ''}`],
     ['bath', '🫧', '목욕'], ['play', '🎈', '놀아주기'], ['sleep', p.sleep ? '☀️' : '🌙', p.sleep ? '깨우기' : '재우기']];
@@ -1115,20 +1147,29 @@ function paint() {
 }
 
 /* ============ 내 둥지 목록 ============ */
+function nestRow(p, i) {
+  const b = spec(p);
+  return `<div class="nest-row ${i === S.active ? 'on' : ''}">
+    <div data-go="${i}" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;cursor:pointer">
+      ${birdSVG(b, p.stage, { uid: 'n' + i })}
+      <div class="info"><b>${p.nick}</b> ${p.sick ? '🤒' : ''}${p.free ? ' 🌿' : ''}
+        <div>${b.name} · ${p.free ? '독립' : STAGES[p.stage].label}</div>
+        ${p.free ? `<div style="font-size:11px;color:#5D9C6B">스스로 잘 지내요</div>`
+      : `<div class="mini-bar"><i style="width:${Math.round((p.hunger + p.clean + p.happy + p.energy) / 4)}%"></i></div>`}</div>
+    </div>
+    <button class="btn" style="padding:7px 9px;font-size:11px" data-rn="${i}"><em>✏️</em>이름</button>
+  </div>`;
+}
 function renderNestList() {
   const host = $('#nestList'); if (!host) return;
-  host.innerHTML = `<div class="sect-t">내 둥지 (${S.birds.length}마리)</div>` + S.birds.map((p, i) => {
-    const b = spec(p);
-    return `<div class="nest-row ${i === S.active ? 'on' : ''}">
-      <div data-go="${i}" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;cursor:pointer">
-        ${birdSVG(b, p.stage, { uid: 'n' + i })}
-        <div class="info"><b>${p.nick}</b> ${p.sick ? '🤒' : ''}
-          <div>${b.name} · ${STAGES[p.stage].label}</div>
-          <div class="mini-bar"><i style="width:${Math.round((p.hunger + p.clean + p.happy + p.energy) / 4)}%"></i></div></div>
-      </div>
-      <button class="btn" style="padding:7px 9px;font-size:11px" data-rn="${i}"><em>✏️</em>이름</button>
-    </div>`;
-  }).join('');
+  const care = S.birds.map((p, i) => [p, i]).filter(([p]) => !p.free);
+  const free = S.birds.map((p, i) => [p, i]).filter(([p]) => p.free);
+  host.innerHTML =
+    `<div class="sect-t">돌보는 중 (${care.length}마리)</div>` +
+    (care.map(([p, i]) => nestRow(p, i)).join('') ||
+      '<div class="card center small">지금 돌보는 아이가 없어요 · 탐험에서 새 알을 데려와 보세요</div>') +
+    (free.length ? `<div class="sect-t">독립한 새 (${free.length}마리)</div>` +
+      free.map(([p, i]) => nestRow(p, i)).join('') : '');
   $$('#nestList [data-go]').forEach(r => r.onclick = () => { S.active = +r.dataset.go; paint(); renderNestList(); save(); });
   $$('#nestList [data-rn]').forEach(r => r.onclick = () => renameBird(+r.dataset.rn));
 }
@@ -1192,7 +1233,7 @@ function renderExplore() {
 function detail(id) {
   id = Number(id);
   const b = BIRDS[id], seen = S.seen.includes(id);
-  const mine = S.birds.filter(p => Number(p.sid) === id);
+  const mine = S.birds.filter(p => BIRDS[p.sid] && Number(p.sid) === id);
   const inf = INFO[id], r = regionOf(id);
   modal(`<h2>${b.name}</h2>
     <p class="desc"><span class="tag t${b.rar}">${RARNAME[b.rar]}</span> ${r.ic} ${r.key}</p>
@@ -1210,11 +1251,20 @@ function detail(id) {
     <div class="row2">
       <button class="btn big green" id="buyIt">🪙 ${b.price.toLocaleString()} 데려오기</button>
       <button class="btn big" onclick="closeModal()">닫기</button></div>
-    ${mine.length ? `<div class="small center" style="margin-top:8px">지금 <b>${mine.map(p => p.nick).join(', ')}</b>${mine.length > 1 ? ' 이(가)' : '와(과)'} 함께 지내고 있어요<br>한 마리 더 데려와도 괜찮아요</div>` : ''}`,
-    h => h.querySelector('#buyIt').onclick = () => {
+    ${mine.length ? `<button class="btn" id="seeMine" style="width:100%;margin-top:10px;font-size:12.5px;padding:9px">
+      같은 종인 <b>${mine.map(p => p.nick).join(', ')}</b>도 있어요 · 눌러서 보기</button>` : ''}
+    <div class="small center" style="margin-top:8px;color:#B0A392">몇 마리든 언제나 데려올 수 있어요</div>`,
+    h => {
+      const sm = h.querySelector('#seeMine');
+      if (sm) sm.onclick = () => {
+        S.active = S.birds.indexOf(mine[0]);
+        closeModal(); go('Nest'); save();
+      };
+      h.querySelector('#buyIt').onclick = () => {
       if (S.coin < b.price) return toast(`코인이 ${(b.price - S.coin).toLocaleString()} 부족해요`);
       S.coin -= b.price; S.birds.push(newBird(id)); S.active = S.birds.length - 1;
       closeModal(); go('Nest'); toast(`${b.name}의 알을 보호소로 데려왔어요!`); save();
+      };
     });
 }
 
@@ -1262,7 +1312,8 @@ function renderNote() {
     <div class="card center"><div style="font-family:'Jua';font-size:16px">육아수첩 📔</div>
       <div class="small" style="margin-top:4px">우리 아이들의 성장 기록이에요</div>
       <div class="small" style="margin-top:6px;color:#B0A392">나만의 새 키우기</div></div>
-    ${S.birds.map((p, i) => {
+    ${(S.birds.some(x => !x.free) ? '<div class="sect-t">돌보는 중</div>' : '')}
+    ${S.birds.map((p, i) => [p, i]).filter(([p]) => !p.free).map(([p, i]) => {
       const b = spec(p), c = p.care || {};
       const total = (c.feed || 0) + (c.clean || 0) + (c.bath || 0) + (c.play || 0);
       return `<div class="card">
@@ -1282,6 +1333,23 @@ function renderNote() {
         <div class="small center" style="margin-top:7px">지금까지 ${total}번 돌봐줬어요</div>
       </div>`;
     }).join('')}
+    ${S.birds.some(x => x.free) ? `<div class="sect-t">독립한 새 · 졸업앨범</div>` +
+      S.birds.map((p, i) => [p, i]).filter(([p]) => p.free).map(([p, i]) => {
+        const b = spec(p), c = p.care || {};
+        const tot = (c.feed || 0) + (c.clean || 0) + (c.bath || 0) + (c.play || 0);
+        const dd = p.freeAt ? new Date(p.freeAt) : null;
+        return `<div class="card" style="background:#F7FBF3;border-color:#CDE8C4">
+          <div style="display:flex;gap:11px;align-items:center">
+            <div style="width:62px;flex:0 0 auto">${birdSVG(b, 4, { uid: 'fr' + i })}</div>
+            <div style="flex:1;min-width:0">
+              <b style="font-family:'Jua';font-size:16px;font-weight:400">${p.nick}</b> 🌿
+              <div class="small">${b.name} · 함께한 지 ${Math.max(1, Math.ceil((now() - p.born) / 86400000))}일</div>
+              <div class="small" style="margin-top:2px">${dd ? `${dd.getFullYear()}년 ${dd.getMonth() + 1}월 ${dd.getDate()}일에 독립했어요` : '독립했어요'}</div>
+              <div class="small" style="margin-top:2px;color:#5D9C6B">키우는 동안 ${tot}번 돌봐줬어요</div>
+            </div>
+            <button class="btn" style="padding:7px 9px;font-size:11px" data-visit="${i}"><em>👋</em>만나기</button>
+          </div></div>`;
+      }).join('') : ''}
     <div class="sect-t">함께한 새들</div>
     <div class="card">
       <div class="bar"><i style="width:${S.seen.length}%;background:linear-gradient(90deg,#F2748C,#FFD764)"></i></div>
@@ -1312,6 +1380,10 @@ function renderNote() {
       <button class="btn" style="flex:1" id="rstBtn"><em>🧹</em>처음부터</button>
     </div>`;
   $$('#scNote [data-rn2]').forEach(x => x.onclick = () => renameBird(+x.dataset.rn2));
+  $$('#scNote [data-visit]').forEach(x => x.onclick = () => {
+    S.active = +x.dataset.visit; go('Nest'); save();
+    toast(`${cur().nick}(이)가 반가워해요!`);
+  });
   $$('#scNote [data-buy]').forEach(x => x.onclick = () => detail(+x.dataset.buy));
   $('#expBtn').onclick = exportFile;
   $('#impBtn').onclick = () => $('#loadFile').click();
@@ -1740,6 +1812,12 @@ function renderHelp() {
       ${growStrip(id)}
       <p>밥을 주고 똥을 치우고 놀아 주면 경험치가 쌓여요. 경험치가 다 차면 다음 단계로 자라납니다.</p>
       <p>어른새가 되면 축하 선물로 코인 300개를 받아요.</p>`)}
+
+    ${sec(0, '🌿', '어른새가 되면 독립해요', `
+      <p>어른새가 되면 스스로 살아갈 수 있게 되어 <b>독립</b>해요. 그때부터는 밥이나 청소를 챙기지 않아도 잘 지내요.</p>
+      <p>독립해도 어디로 가지 않아요. 둥지 목록과 육아수첩에 계속 남아 있고, 언제든 만나서 놀아 주고 쓰다듬어 줄 수 있어요.</p>
+      <p>육아수첩의 <b>독립한 새 · 졸업앨범</b>에는 독립한 날과 그동안 몇 번 돌봐 줬는지가 기록돼요.</p>
+      <div class="tip">돌보는 아이가 많아 힘들 때는 걱정하지 마세요. 한 마리씩 어른이 되어 독립하니까 손이 점점 가벼워져요.</div>`)}
 
     ${sec(0, '🧺', '새를 돌봐요', `
       ${hrow('🍚', '밥주기', '배가 고프면 밥을 줘요. 새마다 좋아하는 먹이가 달라요.')}
