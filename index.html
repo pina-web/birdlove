@@ -136,12 +136,12 @@ main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:78px
 .btn:focus-visible{outline:3px solid #F2748C;outline-offset:2px}
 
 /* ---------- 탭 ---------- */
-.tabs{position:fixed;bottom:0;width:100%;max-width:430px;display:grid;grid-template-columns:repeat(5,1fr);
+.tabs{position:fixed;bottom:0;width:100%;max-width:430px;display:grid;grid-template-columns:repeat(6,1fr);
   background:linear-gradient(180deg,#FFF6E4,#FBEDD2);border-top:2px solid rgba(138,90,59,.2);z-index:30;
   padding-bottom:env(safe-area-inset-bottom)}
-.tab{border:none;background:none;padding:9px 0 10px;font-family:'Jua';font-size:11px;color:var(--ink2);cursor:pointer;
+.tab{border:none;background:none;padding:9px 0 10px;font-family:'Jua';font-size:10.5px;color:var(--ink2);cursor:pointer;
   display:flex;flex-direction:column;align-items:center;gap:3px}
-.tab em{font-size:19px;font-style:normal;line-height:1;filter:grayscale(.6);opacity:.6}
+.tab em{font-size:18px;font-style:normal;line-height:1;filter:grayscale(.6);opacity:.6}
 .tab.on{color:var(--ink)}
 .tab.on em{filter:none;opacity:1;transform:translateY(-1px)}
 
@@ -209,6 +209,36 @@ main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:78px
 .card-f.got{opacity:.55}
 textarea{font-family:'Gowun Dodum',monospace;resize:none;background:#fff}
 input:focus,textarea:focus{outline:2px solid var(--leaf);outline-offset:1px}
+.help-sec{background:var(--paper);border:2px solid rgba(138,90,59,.18);border-radius:17px;
+  box-shadow:0 3px 0 rgba(138,90,59,.14);margin-bottom:10px;overflow:hidden}
+.help-sec>summary{list-style:none;cursor:pointer;padding:14px 15px;display:flex;align-items:center;gap:9px;
+  font-family:'Jua';font-size:15px}
+.help-sec>summary::-webkit-details-marker{display:none}
+.help-sec>summary em{font-style:normal;font-size:21px}
+.help-sec>summary:after{content:'▾';margin-left:auto;color:#B0A392;font-size:13px}
+.help-sec[open]>summary:after{content:'▴'}
+.help-sec[open]>summary{border-bottom:2px dashed rgba(138,90,59,.16)}
+.help-body{padding:12px 15px 16px}
+.help-body p{margin:0 0 9px;font-size:13.5px;line-height:1.7;color:var(--ink)}
+.help-body .tip{background:#F3FBEE;border:2px solid #CDE8C4;border-radius:13px;padding:10px 12px;font-size:13px;line-height:1.65}
+.help-body .warn{background:#FFF1F1;border:2px solid #F3CFD4;border-radius:13px;padding:10px 12px;font-size:13px;line-height:1.65}
+.help-row{display:flex;gap:9px;align-items:flex-start;margin-bottom:9px}
+.help-row .ic{font-size:22px;width:30px;flex:0 0 auto;text-align:center;line-height:1.3}
+.help-row b{font-family:'Jua';font-weight:400;font-size:14px}
+.help-row div{font-size:13px;color:var(--ink2);line-height:1.6}
+.grow{display:flex;align-items:flex-end;justify-content:space-around;gap:4px;background:#EAF6F9;
+  border-radius:14px;padding:10px 6px 8px;margin:4px 0 10px}
+.grow>div{flex:1;text-align:center}
+.grow .sprite{width:100%}
+.grow span{display:block;font-size:10.5px;color:var(--ink2);margin-top:3px}
+@media print{
+  .hud,.tabs,#scNest,#scPlay,#scShop,#scBook,#scNote{display:none !important}
+  body{background:#fff}
+  #app{max-width:none;box-shadow:none;background:#fff}
+  main{padding:0;overflow:visible}
+  .help-sec{break-inside:avoid;box-shadow:none}
+  .help-body{display:block !important}
+}
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms !important;transition-duration:.01ms !important}}
 </style>
 </head>
@@ -252,6 +282,8 @@ input:focus,textarea:focus{outline:2px solid var(--leaf);outline-offset:1px}
     <section class="screen hidden" id="scBook"></section>
     <!-- 육아수첩 -->
     <section class="screen hidden" id="scNote"></section>
+    <!-- 사용설명서 -->
+    <section class="screen hidden" id="scHelp"></section>
   </main>
 
   <nav class="tabs">
@@ -260,6 +292,7 @@ input:focus,textarea:focus{outline:2px solid var(--leaf);outline-offset:1px}
     <button class="tab" data-tab="Shop"><em>🧭</em>탐험</button>
     <button class="tab" data-tab="Book"><em>📖</em>도감</button>
     <button class="tab" data-tab="Note"><em>📔</em>수첩</button>
+    <button class="tab" data-tab="Help"><em>📘</em>설명서</button>
   </nav>
 </div>
 <input type="file" id="loadFile" accept="application/json,.json" class="hidden">
@@ -1619,7 +1652,98 @@ function startPick() {
     }));
 }
 
-const TABS = ['Nest', 'Play', 'Shop', 'Book', 'Note'];
+
+/* ============ 사용설명서 ============ */
+function growStrip(id) {
+  const b = BIRDS[id];
+  return `<div class="grow">
+    <div>${eggSVG(b, { uid: 'hg' })}<span>① 알</span></div>
+    <div>${birdSVG(b, 1, { uid: 'hg' })}<span>② 갓 나온 새끼</span></div>
+    <div>${birdSVG(b, 2, { uid: 'hg' })}<span>③ 아기새</span></div>
+    <div>${birdSVG(b, 3, { uid: 'hg' })}<span>④ 어린새</span></div>
+    <div>${birdSVG(b, 4, { uid: 'hg' })}<span>⑤ 어른새</span></div>
+  </div>`;
+}
+function hrow(ic, t, s) {
+  return `<div class="help-row"><div class="ic">${ic}</div><div><b>${t}</b><div>${s}</div></div></div>`;
+}
+function renderHelp() {
+  const p = cur();
+  const id = p ? p.sid : 2;
+  const sec = (open, ic, title, body) =>
+    `<details class="help-sec"${open ? ' open' : ''}><summary><em>${ic}</em>${title}</summary><div class="help-body">${body}</div></details>`;
+  $('#scHelp').innerHTML = `
+    <div class="card center">
+      <div style="font-family:'Jua';font-size:17px">나만의 새 키우기 사용설명서</div>
+      <div class="small" style="margin-top:4px">궁금한 곳을 눌러서 펼쳐 보세요</div>
+    </div>
+
+    ${sec(1, '🥚', '처음 시작해요', `
+      <p><b>①</b> 마음에 드는 알을 하나 골라 눌러요. 알마다 색과 무늬가 달라서, 어떤 새가 나올지 기대돼요.</p>
+      <p><b>②</b> <b>알 품기</b> 버튼을 여러 번 눌러 따뜻하게 해 주세요. 알에 금이 가면 곧 태어난다는 뜻이에요.</p>
+      <p><b>③</b> 알이 깨어나면 이름을 지어줄 수 있어요. 나중에 언제든 바꿀 수 있어요.</p>`)}
+
+    ${sec(0, '🌱', '알에서 어른새까지', `
+      ${growStrip(id)}
+      <p>밥을 주고 똥을 치우고 놀아 주면 경험치가 쌓여요. 경험치가 다 차면 다음 단계로 자라납니다.</p>
+      <p>어른새가 되면 축하 선물로 코인 300개를 받아요.</p>`)}
+
+    ${sec(0, '🧺', '새를 돌봐요', `
+      ${hrow('🍚', '밥주기', '배가 고프면 밥을 줘요. 새마다 좋아하는 먹이가 달라요.')}
+      ${hrow('🍰', '간식주기', '코인 25개로 특별한 간식을 줘요. 기분과 체력이 쑥 올라가요.')}
+      ${hrow('💩', '똥치우기', '똥이 생기면 눌러서 치워 주세요. 하나에 코인 2개를 받아요.')}
+      ${hrow('🫧', '목욕하기', '더러워지면 씻겨 주세요. 깨끗함이 가득 차요.')}
+      ${hrow('🎈', '놀아주기', '심심해하면 놀아 줘요. 행복이 올라가요.')}
+      ${hrow('🌙', '재우기', '졸려하면 불을 꺼 주세요. 자는 동안 체력이 빨리 회복돼요.')}
+      <div class="warn"><b>새가 아플 때</b><br>오래 굶기고 지저분하게 두면 아파요. 약을 사지 않아도 괜찮아요 —
+      목욕을 시키고 밥을 배부르게 주면 스스로 나아요. 빨리 낫게 하고 싶을 때만 코인 40개로 약을 주면 돼요.</div>`)}
+
+    ${sec(0, '📊', '네 가지 상태', `
+      ${hrow('🍚', '배부름', '밥과 간식을 주면 채워져요.')}
+      ${hrow('🫧', '깨끗함', '똥을 치우고 목욕을 시키면 올라가요.')}
+      ${hrow('💗', '행복', '놀아 주고 게임을 하면 올라가요.')}
+      ${hrow('⚡', '체력', '재우면 30분쯤에 가득 차요. 밥과 간식으로도 조금 회복돼요.')}
+      <div class="tip">앱을 꺼 두어도 시간은 흘러가요. 하루에 한두 번 들어와 밥 주고 똥을 치워 주면 충분해요.</div>`)}
+
+    ${sec(0, '🎮', '놀이로 코인 모으기', `
+      ${hrow('🐛', '벌레 잡기', '손가락을 좌우로 움직여 벌레를 받아먹어요. 돌멩이는 피하기!')}
+      ${hrow('🪶', '둥지까지 날기', '화면을 톡톡 누르면 날아올라요. 부딪혀도 세 번까지 괜찮아요.')}
+      ${hrow('🎵', '노래 따라하기', '새가 부른 순서대로 색깔 단추를 눌러요.')}
+      ${hrow('🃏', '짝꿍 찾기', '카드를 뒤집어 같은 새 두 장을 찾아요. 적게 뒤집을수록 코인이 많아요.')}
+      ${hrow('🔍', '그림자 맞히기', '그림자만 보고 어떤 새인지 맞혀요. 도감 공부가 돼요.')}
+      <p>모은 코인은 탐험에서 알을 데려올 때, 간식이나 약을 살 때 써요.</p>`)}
+
+    ${sec(0, '🧭', '탐험 떠나기', `
+      <p>여덟 곳을 돌아다니며 돌봐 줄 사람이 필요한 알을 찾을 수 있어요. 알을 고르면 코인을 내고 우리 둥지로 데려옵니다.</p>
+      ${REGIONS.map(r => `<div class="help-row"><div class="ic">${r.ic}</div><div><b>${r.key}</b><div>${r.d}</div></div></div>`).join('')}
+      <p>흔한 새는 120코인쯤, 전설의 새는 4,500코인쯤 필요해요. 둥지에서는 여러 마리를 함께 키울 수 있어요.</p>`)}
+
+    ${sec(0, '📖', '도감과 육아수첩', `
+      <p><b>도감</b>은 100종의 새가 어디에 살고 얼마나 큰지, 어떤 재미있는 점이 있는지 알려줘요.
+      아직 만나지 못한 새는 그림자로 보이고, 함께 지낸 새는 또렷하게 보여요.</p>
+      <p><b>육아수첩</b>에는 며칠째 키우고 있는지, 밥과 목욕을 몇 번 해 줬는지가 모두 기록돼요.</p>`)}
+
+    ${sec(0, '💾', '기록 저장하고 옮기기', `
+      <p><b>파일로 저장</b> — 육아수첩 아래에서 누르면 저장 파일이 내려받아져요. 다른 기기로 옮긴 뒤
+      <b>파일 불러오기</b>를 누르면 그대로 이어집니다.</p>
+      <p><b>글자로 복사</b> — 저장이 잘 안 되는 기기라면 글자를 모두 복사해 메모장이나 카카오톡에 보관해 두세요.</p>
+      <div class="warn">불러오기를 하면 지금 키우던 기록은 사라져요. 먼저 저장해 두고 불러오세요.</div>`)}
+
+    ${sec(0, '❓', '자주 묻는 질문', `
+      <p><b>이름을 바꾸고 싶어요</b> — 위쪽 이름을 누르거나, 둥지 목록·육아수첩의 ✏️ 단추를 누르세요.</p>
+      <p><b>새가 자꾸 아파요</b> — 목욕과 밥을 챙겨 주면 아프지 않아요.</p>
+      <p><b>게임이 시작되지 않아요</b> — 자고 있거나 체력이 너무 낮은지 확인해 보세요.</p>
+      <p><b>소리를 끄고 싶어요</b> — 육아수첩 맨 아래 설정에서 끌 수 있어요.</p>`)}
+
+    <button class="btn big" style="width:100%;margin:4px 0 10px" id="printHelp"><em>🖨️</em>설명서 인쇄하기</button>
+    <div class="small center" style="margin-bottom:6px">오늘도 우리 새와 즐거운 하루 보내세요!</div>`;
+  $('#printHelp').onclick = () => {
+    $$('#scHelp .help-sec').forEach(x => x.open = true);
+    setTimeout(() => window.print(), 100);
+  };
+}
+
+const TABS = ['Nest', 'Play', 'Shop', 'Book', 'Note', 'Help'];
 function go(tab) {
   TABS.forEach(t => $('#sc' + t).classList.toggle('hidden', t !== tab));
   $$('.tab').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
@@ -1628,6 +1752,7 @@ function go(tab) {
   if (tab === 'Shop') renderExplore();
   if (tab === 'Book') renderDex();
   if (tab === 'Note') renderNote();
+  if (tab === 'Help') renderHelp();
   if (tab === 'Nest') { paint(); renderNestList(); }
   const m = document.querySelector('main'); if (m) m.scrollTop = 0;
 }
