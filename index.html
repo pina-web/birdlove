@@ -3,7 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>새 키우기 · 알에서 어른새까지</title>
+<title>나만의 새 키우기</title>
+<meta name="apple-mobile-web-app-title" content="나만의 새 키우기">
+<meta name="application-name" content="나만의 새 키우기">
+<meta name="theme-color" content="#FFF8EC">
+<meta name="description" content="알에서 어른새까지, 100종의 새를 만나고 돌보는 나만의 새 키우기">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&display=swap" rel="stylesheet">
@@ -212,7 +216,7 @@ input:focus,textarea:focus{outline:2px solid var(--leaf);outline-offset:1px}
 <div id="app">
   <div class="hud">
     <div class="avatar" id="hudAvatar"></div>
-    <div class="who"><div class="name" id="hudName">둥지 준비 중</div><div class="sub" id="hudSub">알을 골라주세요</div></div>
+    <div class="who"><div class="name" id="hudName">나만의 새 키우기</div><div class="sub" id="hudSub">알을 골라주세요</div></div>
     <div class="coin"><i></i><span id="hudCoin">0</span></div>
   </div>
 
@@ -886,7 +890,7 @@ function fx(text, x) {
 }
 
 /* ============ 시간 흐름 ============ */
-const DECAY = { hunger: 0.85, clean: 0.62, happy: 0.75, energy: 0.2 };
+const DECAY = { hunger: 0.85, clean: 0.45, happy: 0.75, energy: 0.2 };
 function tick() {
   if (!S || !S.birds.length) return;
   const t = now();
@@ -910,8 +914,9 @@ function tick() {
     const rate = 11;
     if (!p.sleep && Math.random() < mins / rate && p.poops.length < 5) p.poops.push(Math.round(18 + Math.random() * 64));
     // 아픔
-    if (!p.sick && (p.clean < 12 || p.hunger < 8) && Math.random() < mins / 6) p.sick = 1;
-    if (p.sick && p.clean > 70 && p.hunger > 60 && Math.random() < mins / 30) p.sick = 0;
+    // 오래 방치했을 때만 아프고, 잘 돌보면 약 없이도 저절로 나아요
+    if (!p.sick && p.clean < 8 && p.hunger < 25 && Math.random() < mins / 90) p.sick = 1;
+    if (p.sick && p.clean > 55 && p.hunger > 45 && Math.random() < mins / 8) p.sick = 0;
   });
   paint();
 }
@@ -986,8 +991,8 @@ function act(kind) {
       p.sleep = p.sleep ? 0 : 1; toast(p.sleep ? '불을 껐어요. 잘 자요' : '일어났어요!'); break;
     case 'cure':
       if (!p.sick) return;
-      if (S.coin < 150) return toast('코인이 부족해요 (150)');
-      S.coin -= 150; p.sick = 0; p.happy = clamp(p.happy + 10); fx('💊'); toast('약을 먹고 나았어요'); break;
+      if (S.coin < 40) return toast('코인이 부족해요 (40)');
+      S.coin -= 40; p.sick = 0; p.happy = clamp(p.happy + 10); fx('💊'); toast('약을 먹고 나았어요'); break;
   }
   paint(); save();
 }
@@ -1000,7 +1005,7 @@ function jump() {
 /* ============ 화면 그리기 ============ */
 function moodText(p) {
   if (p.stage === 0) return '따뜻하게 품어주세요';
-  if (p.sick) return '아파요… 약이 필요해요';
+  if (p.sick) return '아파요… 씻기고 밥 주면 나아요';
   if (p.sleep) return '쿨쿨 자는 중';
   if (p.hunger < 25) return '배고파요';
   if (p.clean < 25) return '지저분해요';
@@ -1058,7 +1063,7 @@ function paint() {
     ? [['warm', '🔥', '알 품기'], ['pat', '🤍', '쓰다듬기'], ['nest', '🪺', '둥지 정리']]
     : [['feed', FOODICON[b.food], '밥주기'], ['snack', '🍰', '간식 25'], ['poop', '💩', `똥치우기${p.poops.length ? ' ' + p.poops.length : ''}`],
     ['bath', '🫧', '목욕'], ['play', '🎈', '놀아주기'], ['sleep', p.sleep ? '☀️' : '🌙', p.sleep ? '깨우기' : '재우기']];
-  if (p.sick) A.push(['cure', '💊', '약 150']);
+  if (p.sick) A.push(['cure', '💊', '약 40']);
   $('#actions').innerHTML = A.map(([k, e, t]) =>
     `<button class="btn ${k === 'cure' ? 'pink' : ''} ${k === 'poop' && p.poops.length ? 'hi' : ''}" data-act="${k}"><em>${e}</em>${t}</button>`).join('');
   $$('#actions .btn').forEach(btn => btn.onclick = () => {
@@ -1211,7 +1216,8 @@ function renderNote() {
   const days = p => Math.max(1, Math.ceil((now() - p.born) / 86400000));
   $('#scNote').innerHTML = `
     <div class="card center"><div style="font-family:'Jua';font-size:16px">육아수첩 📔</div>
-      <div class="small" style="margin-top:4px">우리 아이들의 성장 기록이에요</div></div>
+      <div class="small" style="margin-top:4px">우리 아이들의 성장 기록이에요</div>
+      <div class="small" style="margin-top:6px;color:#B0A392">나만의 새 키우기</div></div>
     ${S.birds.map((p, i) => {
       const b = spec(p), c = p.care || {};
       const total = (c.feed || 0) + (c.clean || 0) + (c.bath || 0) + (c.play || 0);
@@ -1283,7 +1289,7 @@ function exportFile() {
     const blob = new Blob([JSON.stringify(S, null, 1)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `새키우기_저장_${stamp()}.json`;
+    a.download = `나만의새키우기_저장_${stamp()}.json`;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
     toast('저장 파일을 내려받았어요');
@@ -1311,7 +1317,7 @@ function importText() {
 function applyLoad(text) {
   let d;
   try { d = JSON.parse(text); } catch (e) { return toast('저장 내용을 읽을 수 없어요'); }
-  if (!d || !Array.isArray(d.birds)) return toast('새 키우기 저장 파일이 아니에요');
+  if (!d || !Array.isArray(d.birds)) return toast('나만의 새 키우기 저장 파일이 아니에요');
   if (d.birds.some(p => typeof p.sid !== 'number' || !BIRDS[p.sid])) return toast('저장 내용이 손상되었어요');
   closeModal();
   modal(`<h2>불러올까요?</h2><p class="desc">새 ${d.birds.length}마리 · 코인 ${(d.coin || 0).toLocaleString()}개<br>도감 ${(d.seen || []).length}종의 기록이에요.<br>지금 기록은 사라져요.</p>
@@ -1599,8 +1605,8 @@ function gQuiz() {
 /* ============ 시작 ============ */
 function startPick() {
   const list = BIRDS.filter(b => b.rar === 1);
-  modal(`<h2>어떤 알을 품어볼까요?</h2>
-    <p class="desc">처음 만날 새를 골라주세요.<br>알을 따뜻하게 품으면 새끼가 태어나요.</p>
+  modal(`<h2>나만의 새 키우기</h2>
+    <p class="desc">어떤 알을 품어볼까요?<br>처음 만날 새를 골라주세요.<br>알을 따뜻하게 품으면 새끼가 태어나요.</p>
     <div class="grid" style="max-height:46dvh;overflow-y:auto;padding:2px">
       ${list.map(b => `<div class="cell" data-p="${b.id}">${eggSVG(b, { uid: 'p' })}<div class="nm">${b.name}</div></div>`).join('')}
     </div>
