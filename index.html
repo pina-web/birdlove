@@ -195,6 +195,17 @@ main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:78px
 .actor svg{width:100%;height:100%;overflow:visible}
 .item{position:absolute;font-size:26px;z-index:2;line-height:1}
 .pillar{position:absolute;background:linear-gradient(90deg,#7FA85E,#5D8443);border:3px solid #4A6B34;border-radius:8px;z-index:1}
+.jump-play{background:linear-gradient(180deg,#BFE7F6 0%,#DCF0E4 62%,#EFE3C4 62%,#E8D7AE 100%)}
+.jsky{position:absolute;left:0;right:0;top:26px;height:60px;pointer-events:none;
+  background:radial-gradient(circle at 18% 40%,rgba(255,255,255,.9) 0 22px,transparent 23px),
+             radial-gradient(circle at 62% 62%,rgba(255,255,255,.8) 0 17px,transparent 18px),
+             radial-gradient(circle at 88% 30%,rgba(255,255,255,.85) 0 14px,transparent 15px)}
+.jground{position:absolute;left:0;right:0;bottom:0;height:64px;
+  background:linear-gradient(180deg,#DFC98E,#CDB374);border-top:5px solid #A98B52}
+.jground:before{content:'';position:absolute;inset:0;opacity:.5;
+  background:repeating-linear-gradient(90deg,transparent 0 26px,rgba(150,120,70,.35) 26px 30px)}
+.obs{position:absolute;z-index:2;line-height:1;filter:drop-shadow(0 3px 2px rgba(0,0,0,.18))}
+.jump-play .actor{transition:none}
 .note{border:none;border-radius:18px;height:74px;font-family:'Jua';font-size:15px;color:#fff;cursor:pointer;
   box-shadow:0 5px 0 rgba(0,0,0,.18);transition:transform .08s,filter .12s}
 .note:active,.note.flash{filter:brightness(1.55);transform:translateY(3px)}
@@ -1536,7 +1547,8 @@ function renderPlay() {
     ['fly', '🪶', '둥지까지 날기', '톡톡 눌러 폭신하게 날아요. 부딪혀도 세 번까지 괜찮아요.'],
     ['song', '🎵', '노래 따라하기', '새가 부른 순서대로 눌러요. 갈수록 길어져요.'],
     ['match', '🃏', '짝꿍 찾기', '같은 새 카드를 두 장씩 찾아 뒤집어요.'],
-    ['quiz', '🔍', '그림자 맞히기', '그림자만 보고 어떤 새인지 알아맞혀요. 도감 공부가 돼요.']
+    ['quiz', '🔍', '그림자 맞히기', '그림자만 보고 어떤 새인지 알아맞혀요. 도감 공부가 돼요.'],
+    ['jump', '🌵', '폴짝 점프', '길을 달리다 장애물이 오면 눌러서 뛰어넘어요. 두 번 연속 점프도 돼요.']
   ];
   $('#scPlay').innerHTML = `
     <div class="card center"><div style="width:96px;margin:0 auto">${birdSVG(b, p ? p.stage : 4, { uid: 'pl', flap: 1 })}</div>
@@ -1547,7 +1559,7 @@ function renderPlay() {
       <div class="small" style="margin-top:2px">${d}</div></div><div style="font-size:20px;color:#B0A392">▶</div></div>`).join('')}`;
   $$('#scPlay [data-g]').forEach(x => x.onclick = () => {
     if (!canPlay()) return;
-    ({ catch: gCatch, fly: gFly, song: gSong, match: gMatch, quiz: gQuiz })[x.dataset.g]();
+    ({ catch: gCatch, fly: gFly, song: gSong, match: gMatch, quiz: gQuiz, jump: gJump })[x.dataset.g]();
   });
 }
 
@@ -1561,11 +1573,12 @@ function gCatch() {
     <div class="small center" style="margin-top:10px">화면을 손가락으로 좌우로 움직이세요</div>
     <button class="btn big" style="width:100%;margin-top:10px" onclick="renderPlay()">그만하기</button>`;
   const pl = $('#pl'), me = $('#me');
-  let x = pl.clientWidth / 2 - 37, score = 0, life = 3, items = [], t0 = now(), last = now(), spawn = 0;
+  const PW = pl.clientWidth || 360;
+  let x = PW / 2 - 37, score = 0, life = 3, items = [], t0 = now(), last = now(), spawn = 0;
   const move = e => {
     const r = pl.getBoundingClientRect();
     const cx = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
-    x = Math.max(0, Math.min(pl.clientWidth - 74, cx - 37)); me.style.left = x + 'px';
+    x = Math.max(0, Math.min(PW - 74, cx - 37)); me.style.left = x + 'px';
   };
   pl.addEventListener('pointermove', move);
   pl.addEventListener('touchmove', e => { e.preventDefault(); move(e); }, { passive: false });
@@ -1580,12 +1593,12 @@ function gCatch() {
       const bad = Math.random() < .24;
       const el = document.createElement('div'); el.className = 'item';
       el.textContent = bad ? BAD[Math.random() * BAD.length | 0] : GOOD[Math.random() * GOOD.length | 0];
-      el.style.left = (10 + Math.random() * (pl.clientWidth - 50)) + 'px'; el.style.top = '-30px';
+      el.style.left = (10 + Math.random() * (PW - 50)) + 'px'; el.style.top = '-30px';
       pl.appendChild(el); items.push({ el, y: -30, v: .11 + Math.random() * .07 + (t - t0) / 340000, bad });
     }
     items.forEach(it => {
       it.y += it.v * dt * 2.2; it.el.style.top = it.y + 'px';
-      if (!it.hit && it.y > pl.clientHeight - 92 && it.y < pl.clientHeight - 16) {
+      if (!it.hit && it.y > (pl.clientHeight || 390) - 92 && it.y < (pl.clientHeight || 390) - 16) {
         const ix = parseFloat(it.el.style.left);
         if (ix > x - 24 && ix < x + 76) {
           it.hit = 1; it.el.remove();
@@ -1593,7 +1606,7 @@ function gCatch() {
           else { score++; beep(660 + score * 12, .09, 'triangle'); $('#sc').textContent = '🐛 ' + score; }
         }
       }
-      if (it.y > pl.clientHeight) { it.hit = 1; it.el.remove(); }
+      if (it.y > (pl.clientHeight || 390)) { it.hit = 1; it.el.remove(); }
     });
     items = items.filter(i => !i.hit);
     if (left <= 0 || life <= 0) return finish(score * 3, life <= 0 ? '아야! 그만할래요' : '벌레 잡기 끝!', `${score}마리를 잡았어요`);
@@ -1611,7 +1624,7 @@ function gFly() {
     </div>
     <div class="small center" style="margin-top:10px">톡톡 누르면 살짝 떠올라요 · 나무에 부딪혀도 세 번까지 괜찮아요</div>
     <button class="btn big" style="width:100%;margin-top:10px" onclick="renderPlay()">그만하기</button>`;
-  const pl = $('#pl'), me = $('#me'), H = pl.clientHeight, W = pl.clientWidth;
+  const pl = $('#pl'), me = $('#me'), H = pl.clientHeight || 390, W = pl.clientWidth || 360;
   let y = 160, v = 0, score = 0, life = 3, pipes = [], last = now(), spawn = 900, started = 0, inv = 0;
   const flap = e => { e.preventDefault(); started = 1; v = -3.6; beep(520, .07, 'triangle'); $('#ms').textContent = '훨훨~'; };
   pl.addEventListener('pointerdown', flap);
@@ -1760,6 +1773,77 @@ function gQuiz() {
   ask();
 }
 
+/* ============ 6. 폴짝 점프 (장애물 피하기) ============ */
+function gJump() {
+  const p = cur(), b = spec(p);
+  $('#scPlay').innerHTML = `<div class="play jump-play" id="pl">
+      <div class="hudline"><span id="sc">🌿 0</span><span id="ms">눌러서 시작</span><span id="lf">❤❤❤</span></div>
+      <div class="jsky"></div><div class="jground"></div>
+      <div class="actor" id="me" style="left:56px;width:66px;height:66px">${birdSVG(b, p.stage, { uid: 'jp' })}</div>
+    </div>
+    <div class="small center" style="margin-top:10px">화면을 누르면 폴짝! · 공중에서 한 번 더 누르면 두 단 점프</div>
+    <button class="btn big" style="width:100%;margin-top:10px" onclick="renderPlay()">그만하기</button>`;
+  const pl = $('#pl'), me = $('#me');
+  const H = pl.clientHeight || 390, W = pl.clientWidth || 360;
+  const GROUND = H - 74;                 // 발이 닿는 높이
+  let y = 0, v = 0, jumps = 0, run = 0;  // y: 바닥에서 띄운 높이
+  let obs = [], score = 0, life = 3, inv = 0, spawn = 900, last = now(), started = 0, speed = 0.19;
+  const KIND = [['🌵', 44], ['🪨', 40], ['🌰', 36], ['🌿', 42]];
+
+  const place = () => { me.style.top = (GROUND - y) + 'px'; };
+  place();
+  const jump = e => {
+    if (e) e.preventDefault();
+    if (!started) { started = 1; $('#ms').textContent = '달리는 중!'; }
+    if (jumps >= 2) return;
+    jumps++;
+    v = jumps === 1 ? -4.4 : -3.4;
+    beep(jumps === 1 ? 620 : 780, .09, 'triangle');
+  };
+  pl.addEventListener('pointerdown', jump);
+  const hit = () => {
+    life--; inv = 1200; beep(150, .25, 'square');
+    $('#lf').textContent = '❤'.repeat(Math.max(0, life));
+    me.style.opacity = .45;
+  };
+  const step = () => {
+    const t = now(), dt = Math.min(46, t - last); last = t;
+    if (started) {
+      if (inv > 0) { inv -= dt; if (inv <= 0) me.style.opacity = 1; }
+      // 점프 물리
+      v += 0.021 * dt;
+      y -= v * dt * 0.16;
+      if (y <= 0) { y = 0; v = 0; jumps = 0; }
+      place();
+      me.style.transform = `rotate(${y > 2 ? -12 : 0}deg)`;
+      // 달리는 느낌
+      run += dt;
+      if (y <= 0) me.style.marginTop = (Math.sin(run / 90) * 3) + 'px';
+      // 장애물
+      speed = 0.16 + Math.min(0.11, score * 0.005);
+      spawn -= dt;
+      if (spawn <= 0) {
+        spawn = 1400 - Math.min(500, score * 24) + Math.random() * 600;
+        const [ic, sz] = KIND[Math.random() * KIND.length | 0];
+        const el = document.createElement('div');
+        el.className = 'obs'; el.textContent = ic;
+        el.style.cssText = `left:${W}px;bottom:64px;font-size:${sz}px`;
+        pl.appendChild(el);
+        obs.push({ el, x: W, w: sz * 0.8, h: sz });
+      }
+      obs.forEach(o => {
+        o.x -= speed * dt * 2.2; o.el.style.left = o.x + 'px';
+        if (!o.sc && o.x + o.w < 56) { o.sc = 1; score++; $('#sc').textContent = '🌿 ' + score; beep(700 + score * 8, .08); }
+        if (!o.done && inv <= 0 && o.x < 118 && o.x + o.w > 58 && y < o.h - 4) { o.done = 1; hit(); }
+      });
+      obs = obs.filter(o => { if (o.x < -60) { o.el.remove(); return false; } return true; });
+      if (life <= 0) return finish(score * 6 + 8, '폴짝 점프 끝!', `장애물 ${score}개를 뛰어넘었어요`);
+    }
+    loopId = requestAnimationFrame(step);
+  };
+  loopId = requestAnimationFrame(step);
+}
+
 /* ============ 시작 ============ */
 function startPick() {
   const list = BIRDS.filter(b => b.rar === 1);
@@ -1842,6 +1926,7 @@ function renderHelp() {
       ${hrow('🎵', '노래 따라하기', '새가 부른 순서대로 색깔 단추를 눌러요.')}
       ${hrow('🃏', '짝꿍 찾기', '카드를 뒤집어 같은 새 두 장을 찾아요. 적게 뒤집을수록 코인이 많아요.')}
       ${hrow('🔍', '그림자 맞히기', '그림자만 보고 어떤 새인지 맞혀요. 도감 공부가 돼요.')}
+      ${hrow('🌵', '폴짝 점프', '길을 달리다 장애물이 오면 눌러서 뛰어넘어요. 공중에서 한 번 더 누르면 두 단 점프!')}
       <p>모은 코인은 탐험에서 알을 데려올 때, 간식이나 약을 살 때 써요.</p>`)}
 
     ${sec(0, '🧭', '탐험 떠나기', `
